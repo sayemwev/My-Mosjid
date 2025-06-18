@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>মসজিদ পরিচালনা (বেতন সংগ্রহ - স্থিতিশীল সংস্করণ)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        :root {
+            --bg-main: #F4F7F6; --bg-card: #FFFFFF; --primary-green: #005B41;
+            --secondary-green: #008170; --accent-gold: #B8860B; --text-dark: #232D3F;
+            --text-light: #F4F7F6; --border-color: #DDE2E1; --shadow-soft: 0 4px 12px rgba(0,0,0,0.07);
+            --shadow-medium: 0 6px 20px rgba(0,0,0,0.1); --font-bengali: 'Hind Siliguri', sans-serif;
+            --radius-main: 12px; --transition-main: all 0.3s ease;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--font-bengali); background-color: var(--bg-main); color: var(--text-dark); display: flex; justify-content: center; padding: 20px; min-height: 100vh; }
+        .website-wrapper { width: 100%; max-width: 900px; display: flex; flex-direction: column; gap: 15px; }
+        .header-section, .time-date-section, .main-option-card, .page-view, .footer-section { border-radius: var(--radius-main); box-shadow: var(--shadow-soft); }
+        .header-section { background: linear-gradient(135deg, var(--primary-green), var(--secondary-green)); color: var(--text-light); text-align: center; padding: 12px; }
+        .time-date-section { background-color: #e8f3f1; text-align: center; padding: 10px; font-weight: 600; color: var(--primary-green); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; letter-spacing: 0.5px; }
+        
+        /* Main Menu Grid Layout (2x4) */
+        .main-menu-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        @media (max-width: 600px) {
+            .main-menu-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .main-option-card { background-color: var(--bg-card); padding: 25px; text-align: center; cursor: pointer; transition: var(--transition-main); border-bottom: 4px solid transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .main-option-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-medium); border-bottom-color: var(--primary-green); }
+        .main-option-card .menu-icon { font-size: 2.5em; color: var(--secondary-green); margin-bottom: 15px; font-weight: bold; }
+        .main-option-card h2 { font-size: 1.2em; color: var(--primary-green); font-weight: 600; }
+        
+        .page-view { display: none; background-color: var(--bg-card); padding: 25px; }
+        .view-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; margin-bottom: 25px; }
+        .btn-back { background-color: var(--accent-gold); color: white; padding: 8px 16px; border: none; font-size: 0.95em; font-weight: 600; cursor: pointer; border-radius: 8px; }
+        label { display: block; margin-bottom: 8px; font-weight: 500; }
+        input, select, textarea { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1em; font-family: var(--font-bengali); }
+        .btn { background-color: var(--secondary-green); color: white; padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 1em; font-weight: 500; transition: var(--transition-main); margin-right: 10px; }
+        .btn:hover { background-color: var(--primary-green); transform: translateY(-2px); }
+        .btn-danger { background-color: #dc3545; } .btn-warning { background-color: #ffc107; color: #212529; } .btn-info { background-color: #007bff; } .btn-sm { padding: 6px 12px; font-size: 0.85em; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.95em; }
+        th, td { border: 1px solid var(--border-color); padding: 10px; text-align: left; }
+        th { background-color: #e8f3f1; color: var(--primary-green); } tfoot td { font-weight: bold; background-color: #e0ebe9; }
+        .footer-section { background-color: var(--primary-green); color: #e0e0e0; text-align: center; padding: 15px; font-size: 0.9em; margin-top: 10px; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 25px; border-radius: var(--radius-main); width: 90%; max-width: 600px; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        .close-btn { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .report-pdf-buttons { margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap; }
+        
+        .data-management-box {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-main);
+            background-color: #f8f9fa;
+        }
+        .data-management-box h4 {
+            color: var(--primary-green);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .data-management-box p {
+            font-size: 0.9em;
+            color: #555;
+            margin-bottom: 20px;
+        }
+        .data-management-box .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .kromik-search-container {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: end;
+        }
+        .kromik-search-container input {
+            margin-bottom: 0;
+        }
+        .kromik-search-container button {
+            height: 48px;
+            margin-right: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="website-wrapper">
+        <header class="header-section"><h1>মসজিদ পরিচালনা</h1></header>
+        <section class="time-date-section" id="timeDateDisplay">সময় ও তারিখ লোড হচ্ছে...</section>
+        
+        <main id="mainMenuContainer">
+            <div class="main-menu-container">
+                <div class="main-option-card" data-action="showView" data-view-id="salaryCollectionView"><div class="menu-icon">ট</div><h2>হুজুরের বেতন সংগ্রহ</h2></div>
+                <div class="main-option-card" data-action="showView" data-view-id="memberManagementView"><div class="menu-icon">👥</div><h2>সদস্য যোগ/বিয়োগ</h2></div>
+                <div class="main-option-card" data-action="showView" data-view-id="unpaidDuesView"><div class="menu-icon">🧾</div><h2>অপরিশোধকারীর তালিকা</h2></div>
+                <div class="main-option-card" data-action="showView" data-view-id="whatsappView"><div class="menu-icon">📱</div><h2>হোয়াটসঅ্যাপে রিপোর্ট</h2></div>
+                <div class="main-option-card" data-action="showView" data-view-id="backupRestoreView"><div class="menu-icon">💾</div><h2>ব্যাকআপ/রিস্টোর</h2></div>
+                <div class="main-option-card" data-action="showView" data-view-id="allDataPdfView"><div class="menu-icon">📄</div><h2>সকল তথ্য PDF</h2></div>
+                <div class="main-option-card" data-action="showView" data-view-id="dashboardView"><div class="menu-icon">📊</div><h2>মাসিক সংক্ষিপ্ত বিবরণ</h2></div>
+            </div>
+        </main>
+        
+        <section id="salaryCollectionView" class="page-view">
+            <div class="view-header"><h2>হুজুরের বেতন সংগ্রহ</h2><button class="btn-back" data-action="showView" data-view-id="mainMenuContainer">ফিরুন</button></div>
+            <form id="salaryCollectionForm">
+                <!-- Kromik Number Search -->
+                <div class="kromik-search-container">
+                    <div>
+                        <label for="kromikNumberInput">ক্রমিক নম্বর দিন:</label>
+                        <input type="number" id="kromikNumberInput" placeholder="নম্বর লিখে Enter চাপুন">
+                    </div>
+                    <button type="button" class="btn" data-action="findMemberByKromik">খুঁজুন</button>
+                </div>
+                
+                <label for="salaryCollectorSelect">অথবা সদস্য নির্বাচন করুন:</label>
+                <select id="salaryCollectorSelect" required></select>
+
+                <div style="display: flex; align-items: center; gap: 10px; margin: 15px 0;"><input type="month" id="salaryMonthSelector" style="flex-grow: 1;"><button type="button" class="btn btn-sm btn-info" data-action="addMonthToSalarySelection">মাস যোগ করুন</button></div>
+                <div id="salarySelectedMonthsContainer" style="margin-bottom: 15px;"></div><label for="salaryCollectionDate">বেতন সংগ্রহের তারিখ:</label><input type="date" id="salaryCollectionDate" required>
+                <button type="submit" class="btn">বেতন জমা দিন</button>
+            </form>
+            <hr style="margin: 30px 0;"><h3>রিপোর্ট দেখুন</h3>
+            <div class="report-controls" style="display: flex; flex-wrap: wrap; gap: 10px; margin: 15px 0;">
+                <button class="btn btn-info" data-action="generateSalaryReport" data-period="daily">দৈনিক</button><button class="btn btn-info" data-action="generateSalaryReport" data-period="weekly">সাপ্তাহিক</button>
+                <button class="btn btn-info" data-action="generateSalaryReport" data-period="monthly">মাসিক</button><button class="btn btn-info" data-action="generateSalaryReport" data-period="yearly">বাৎসরিক</button>
+            </div><div id="salaryReportOutput"></div>
+        </section>
+        
+        <section id="memberManagementView" class="page-view">
+            <div class="view-header"><h2>সদস্য ব্যবস্থাপনা</h2><button class="btn-back" data-action="showView" data-view-id="mainMenuContainer">ফিরুন</button></div>
+            
+            <div class="data-management-box">
+                <h4>সদস্য ডেটা ব্যবস্থাপনা</h4>
+                <p>এখান থেকে সকল সদস্যের তালিকা PDF আকারে ডাউনলোড করুন অথবা JSON ফাইল হিসেবে আমদানি/রপ্তানি করে ডেটা ব্যাকআপ রাখুন।</p>
+                <div class="button-group">
+                    <button class="btn btn-sm btn-info" data-action="exportMembersToPDF">সদস্য তালিকা PDF</button>
+                </div>
+                <div class="button-group report-pdf-buttons">
+                    <button class="btn btn-sm" data-action="exportMembersToJSON">সদস্য রপ্তানি (JSON)</button>
+                    <button class="btn btn-sm" data-action="triggerMemberImport">সদস্য আমদানি (JSON)</button>
+                    <input type="file" id="memberImportFile" style="display: none;" accept=".json">
+                </div>
+            </div>
+
+            <form id="memberForm"><label for="banglaNameInput">বাংলা নাম:</label><input type="text" id="banglaNameInput" required><label for="englishNameInput">ইংরেজি নাম:</label><input type="text" id="englishNameInput" required>
+            <label for="mobileNumberInput">মোবাইল নম্বর (১১ সংখ্যা):</label><input type="tel" id="mobileNumberInput" pattern="[0-9]{11}"><label for="monthlyFeeInput">মাসিক বেতন (টাকা):</label><input type="number" id="monthlyFeeInput" required>
+            <input type="hidden" id="editingMemberId"><button type="submit" class="btn">যোগ/আপডেট করুন</button></form><h3 style="margin-top: 30px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color);">নিবন্ধিত সদস্যগণ</h3>
+            <div id="memberListContainer" style="margin-top: 20px;"></div>
+        </section>
+        
+        <section id="unpaidDuesView" class="page-view">
+             <div class="view-header"><h2>অপরিশোধকারীর তালিকা</h2><button class="btn-back" data-action="showView" data-view-id="mainMenuContainer">ফিরুন</button></div>
+            <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;"><div><label for="unpaidCheckStartMonth">শুরুর মাস:</label><input type="month" id="unpaidCheckStartMonth"></div><div><label for="unpaidCheckEndMonth">শেষের মাস:</label><input type="month" id="unpaidCheckEndMonth"></div></div>
+            <button class="btn" data-action="generateUnpaidReport">রিপোর্ট দেখুন</button><div id="unpaidReportOutput" style="margin-top: 20px;"></div>
+        </section>
+        
+        <section id="whatsappView" class="page-view">
+            <div class="view-header"><h2>হোয়াটসঅ্যাপে রিপোর্ট পাঠান</h2><button class="btn-back" data-action="showView" data-view-id="mainMenuContainer">ফিরুন</button></div><p style="font-size:0.9em; color:#555; margin-bottom:20px;">এখানে নম্বর যোগ করলে আপনি সেই নম্বরে সরাসরি রিপোর্ট পাঠাতে পারবেন।</p>
+            <form id="whatsappForm"><div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;"><div><label for="whatsappContactName">ব্যক্তির নাম/পদবী:</label><input type="text" id="whatsappContactName" required></div><div><label for="whatsappContactNumber">হোয়াটসঅ্যাপ নম্বর (দেশ কোড সহ):</label><input type="tel" id="whatsappContactNumber" required placeholder="8801..."></div></div>
+            <button type="submit" class="btn">নম্বর যোগ করুন</button></form><h3 style="margin-top: 30px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color);">সংরক্ষিত নম্বর তালিকা</h3>
+            <div id="whatsappListContainer" style="margin-top: 20px;"></div>
+        </section>
+        
+        <section id="backupRestoreView" class="page-view">
+            <div class="view-header"><h2>সমস্ত ডেটা ব্যাকআপ ও রিস্টোর</h2><button class="btn-back" data-action="showView" data-view-id="mainMenuContainer">ফিরুন</button></div><h4>ডেটা ব্যাকআপ</h4><p>আপনার সকল তথ্য (সদস্য, বেতন) একটি ফাইলে সংরক্ষণ করতে নিচের বাটনে ক্লিক করুন। এই ফাইলটি নিরাপদ স্থানে সংরক্ষণ করুন।</p>
+            <button class="btn" data-action="backupAllData">সম্পূর্ণ ডেটা ব্যাকআপ করুন (JSON)</button><hr style="margin: 30px 0;"><h4>ডেটা রিস্টোর</h4>
+            <p>যদি আপনার ব্রাউজারের ডেটা মুছে যায়, ব্যাকআপ ফাইল থেকে সকল তথ্য পুনরুদ্ধার করতে এখানে ফাইলটি আপলোড করুন। <strong>সতর্কতা:</strong> এটি বর্তমান সকল ডেটা মুছে ফেলে নতুন ডেটা যোগ করবে।</p>
+            <input type="file" id="restoreFileInput" accept=".json"><button class="btn" data-action="handleRestoreData">রিস্টোর করুন</button>
+        </section>
+
+        <section id="allDataPdfView" class="page-view">
+            <div class="view-header"><h2>সকল তথ্য PDF আকারে ডাউনলোড করুন</h2><button class="btn-back" data-action="showView" data-view-id="mainMenuContainer">ফিরুন</button></div>
+            <p>নিচের বাটনে ক্লিক করলে আপনার সকল বেতন সংগ্রহের তথ্য একটিমাত্র PDF ফাইলে ডাউনলোড হবে। প্রতিটি মাসের হিসাব আলাদা পৃষ্ঠায় দেখানো হবে এবং লেনদেনটি যে মাসের জন্য হয়েছে, সেই মাসের পৃষ্ঠাতেই থাকবে।</p>
+            <div class="report-controls" style="display: flex; justify-content: center; margin: 20px 0;">
+                 <button class="btn btn-info" data-action="generateAllMonthsPdf" style="font-size: 1.1em; padding: 15px 25px;">
+                    সকল মাসের রিপোর্ট ডাউনলোড করুন
+                </button>
+            </div>
+        </section>
+        
+        <section id="dashboardView" class="page-view">
+            <div class="view-header"><h2>মাসিক সংক্ষিপ্ত বিবরণ</h2><button class="btn-back" data-action="showView" data-view-id="mainMenuContainer">ফিরুন</button></div>
+            <div id="dashboardContent" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                <!-- ড্যাশবোর্ডের তথ্য এখানে জাভাস্ক্রিপ্ট দিয়ে লোড হবে -->
+            </div>
+        </section>
+
+        <div id="modalContainer"></div>
+        
+        <footer class="footer-section">
+            <p>&copy; <span id="currentYear"></span> আব্দুল হালিম সায়েম। সর্বস্বত্ব সংরক্ষিত।</p>
+        </footer>
+    </div>
+
+<script>
+// --- APPLICATION START ---
+const { jsPDF } = window.jspdf;
+
+document.addEventListener('DOMContentLoaded', () => {
+
+    const app = {
+        // --- DATA KEYS & STORAGE ---
+        KEYS: { members: 'hujurSalary_members_v15', collections: 'hujurSalary_collections_v15', whatsappContacts: 'hujurSalary_whatsappContacts_v15' },
+        members: [], collections: [], whatsappContacts: [],
+        nextKromikNo: 1, selectedMonthsForSalary: [],
+        
+        HIND_SILIGURI_FONT: 'AAEAAAARAQAABAAQR0RFRgQsBBsAACAoAAAAHkdTVUKs05usAAAG9AAAAExPUy8yIVv/lQAAAUgAAACgY21hcBIAA0cAAAjwAAABUmdhc3D//wADAAh4AAAAIGdseWZP79s/AAALTAAAeixoZWFkCT8VugAAAngAAAA2aGhlYQclA/sAAAKEAAAAJGhtdHgM8wKkAAACjAAAA3Bsb2Nh0FrZTQAAgxwAAAEqbWF4cAIkAjgAAAGQAAAAIG5hbWUeOBWeAAChRAAAAsZwb3N0/5wAMgAAwvAAAABacHJlcGgGjIUDAAABOAAAABJ3ZWJm1yS2vQAAx+wAAAAGAAAAAQAAAADMPaLPAAAAAM9Vza0AAAADPosjmwAAAAAAARIAAAAAAAGAAAAAAAAAoAAAAFAAAAAAANAM0AAQAAAAAAAgAAAAoACgAAAP8ABAABAAD//wAAAP8AAAAAAQAAAAoACgAAAAAEAAIAAAAAAAAAAQAAAAAAVQJSAQAAAAAFAGkC1wAAAAAAAQAAAAAAAQABAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAAQAAAAEAAAAAA-A-L-L--T-H-E--R-E-A-L--B-A-S-E-6-4--F-O-N-T--D-A-T-A--G-O-E-S--H-E-R-E---', 
+
+        // --- INITIALIZATION ---
+        init() {
+            this.loadData();
+            document.querySelector('.website-wrapper').addEventListener('click', this.handleDelegatedClick.bind(this));
+            document.querySelector('.website-wrapper').addEventListener('submit', this.handleFormSubmit.bind(this));
+            document.getElementById('kromikNumberInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.findMemberByKromik();
+                }
+            });
+            this.updateTime();
+            setInterval(() => this.updateTime(), 1000);
+            document.getElementById('currentYear').textContent = new Date().getFullYear().toLocaleString('bn-BD');
+            this.showView({ viewId: 'mainMenuContainer' });
+        },
+        loadData() {
+            try {
+                this.members = JSON.parse(localStorage.getItem(this.KEYS.members) || '[]');
+                this.collections = JSON.parse(localStorage.getItem(this.KEYS.collections) || '[]');
+                this.whatsappContacts = JSON.parse(localStorage.getItem(this.KEYS.whatsappContacts) || '[]');
+                this.nextKromikNo = this.members.length > 0 ? Math.max(...this.members.map(m => m.kromikNo || 0)) + 1 : 1;
+            } catch (e) { console.error("Error loading data:", e); }
+        },
+        saveData() {
+            localStorage.setItem(this.KEYS.members, JSON.stringify(this.members));
+            localStorage.setItem(this.KEYS.collections, JSON.stringify(this.collections));
+            localStorage.setItem(this.KEYS.whatsappContacts, JSON.stringify(this.whatsappContacts));
+        },
+        
+        // --- EVENT HANDLING ---
+        handleDelegatedClick(e) {
+            const target = e.target.closest('[data-action]');
+            if (!target) return;
+            const action = target.dataset.action;
+            if (this[action]) this[action](target.dataset);
+        },
+        handleFormSubmit(e) {
+            e.preventDefault();
+            const formActions = {
+                memberForm: 'handleMemberSubmit',
+                salaryCollectionForm: 'handleSalarySubmit',
+                whatsappForm: 'handleWhatsAppSubmit'
+            };
+            const action = formActions[e.target.id];
+            if (action && this[action]) this[action]();
+        },
+        
+        // --- VIEW MANAGEMENT ---
+        showView({ viewId }) {
+            document.querySelectorAll('.page-view, #mainMenuContainer').forEach(v => v.style.display = 'none');
+            const viewElement = document.getElementById(viewId);
+            if(viewElement) {
+                viewElement.style.display = viewId === 'mainMenuContainer' ? 'block' : 'block';
+                this.initializeView(viewId);
+            }
+        },
+        initializeView(viewId) {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            switch (viewId) {
+                case 'salaryCollectionView': this.initSalaryCollection(); break;
+                case 'memberManagementView': this.renderMemberList(); break;
+                case 'unpaidDuesView':
+                    document.getElementById('unpaidCheckStartMonth').value = `${year}-01`;
+                    document.getElementById('unpaidCheckEndMonth').value = `${year}-${month}`;
+                    break;
+                case 'whatsappView': this.renderWhatsappList(); break;
+                case 'dashboardView': this.renderDashboard(); break;
+            }
+        },
+        
+        // --- UTILITY & FORMATTING FUNCTIONS ---
+        updateTime() { 
+            const now = new Date(); 
+            const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }; 
+            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }; 
+            document.getElementById('timeDateDisplay').textContent = `${now.toLocaleDateString('bn-BD', dateOptions)}, ${now.toLocaleTimeString('en-US', timeOptions)}`; 
+        },
+        formatBn(val, type) { if (!val) return ''; const date = new Date(val + (type === 'month' ? '-02T00:00:00' : 'T12:00:00')); const options = type === 'month' ? { month: 'long', year: 'numeric' } : { day: 'numeric', month: 'long', year: 'numeric' }; return date.toLocaleDateString('bn-BD', options); },
+        formatDateBn(dateStr) { return this.formatBn(dateStr, 'date'); },
+        formatMonthBn(monthStr) { return this.formatBn(monthStr, 'month'); },
+        formatEn(val, type) { if (!val) return ''; const date = new Date(val + (type === 'month' ? '-02T00:00:00' : 'T12:00:00')); const options = type === 'month' ? { month: 'long', year: 'numeric' } : { day: '2-digit', month: 'short', year: 'numeric' }; return date.toLocaleDateString('en-US', options); },
+        formatDateEn(dateStr) { return this.formatEn(dateStr, 'date'); },
+        formatMonthEn(monthStr) { return this.formatEn(monthStr, 'month'); },
+        
+        getReportData(type, data, dateField) { let reportData = [], title = '', pdfTitle = ''; const now = new Date(); const startOfWeek = new Date(now); startOfWeek.setDate(now.getDate() - now.getDay()); startOfWeek.setHours(0,0,0,0); const endOfWeek = new Date(startOfWeek); endOfWeek.setDate(startOfWeek.getDate() + 6); endOfWeek.setHours(23,59,59,999); switch (type) { case 'daily': const todayStr = now.toISOString().split('T')[0]; reportData = data.filter(c => c[dateField].slice(0, 10) === todayStr); title = `দৈনিক রিপোর্ট (${this.formatDateBn(todayStr)})`; pdfTitle = `Daily Report - ${this.formatDateEn(todayStr)}`; break; case 'weekly': reportData = data.filter(c => new Date(c[dateField]) >= startOfWeek && new Date(c[dateField]) <= endOfWeek); title = `সাপ্তাহিক রিপোর্ট (${this.formatDateBn(startOfWeek)} - ${this.formatDateBn(endOfWeek)})`; pdfTitle = `Weekly Report (${this.formatDateEn(startOfWeek)} to ${this.formatDateEn(endOfWeek)})`; break; case 'monthly': const currentMonth = now.toISOString().slice(0, 7); reportData = data.filter(c => c[dateField].slice(0, 7) === currentMonth); title = `মাসিক রিপোর্ট (${this.formatMonthBn(currentMonth)})`; pdfTitle = `Monthly Report - ${this.formatMonthEn(currentMonth)}`; break; case 'yearly': const currentYear = now.getFullYear(); reportData = data.filter(c => new Date(c[dateField]).getFullYear() === currentYear); title = `বাৎসরিক রিপোর্ট (${currentYear.toLocaleString('bn-BD')})`; pdfTitle = `Yearly Report - ${currentYear}`; break; } return { reportData, title, pdfTitle }; },
+        
+        // --- MEMBER MANAGEMENT ---
+        handleMemberSubmit() { const banglaName = document.getElementById('banglaNameInput').value.trim(); const englishName = document.getElementById('englishNameInput').value.trim(); const mobileNumber = document.getElementById('mobileNumberInput').value.trim(); const monthlyFee = parseFloat(document.getElementById('monthlyFeeInput').value); const editingId = document.getElementById('editingMemberId').value; if (!banglaName || !englishName || isNaN(monthlyFee)) return alert('সকল আবশ্যিক তথ্য পূরণ করুন।'); if (mobileNumber && !/^[0-9]{11}$/.test(mobileNumber)) return alert('সঠিক ১১ সংখ্যার মোবাইল নম্বর দিন।'); if (this.members.some(m => m.id !== editingId && (m.banglaName === banglaName || (mobileNumber && m.mobileNumber === mobileNumber)))) return alert('এই নাম বা মোবাইল নম্বর দিয়ে সদস্য আগে থেকেই আছেন।'); if (editingId) { const member = this.members.find(m => m.id === editingId); if (member) Object.assign(member, { banglaName, englishName, mobileNumber, monthlyFee }); } else { this.members.push({ id: `m_${Date.now()}`, kromikNo: this.nextKromikNo++, banglaName, englishName, mobileNumber, monthlyFee, isActive: true }); } this.saveData(); this.renderMemberList(); document.getElementById('memberForm').reset(); document.getElementById('editingMemberId').value = ''; alert('সদস্যের তথ্য সংরক্ষিত হয়েছে।'); },
+        renderMemberList() { const container = document.getElementById('memberListContainer'); container.innerHTML = ''; this.members.sort((a,b) => (a.kromikNo || 0) - (b.kromikNo || 0)).forEach(member => { const itemDiv = document.createElement('div'); itemDiv.className = 'list-item'; itemDiv.style.cssText = `display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom: 1px solid #eee; opacity: ${member.isActive ? '1' : '0.6'};`; itemDiv.innerHTML = `<div style="flex-grow:1;"><strong>${member.kromikNo}. ${member.banglaName}</strong> (${member.englishName})<br><small>মোবাইল: ${member.mobileNumber || 'N/A'} | মাসিক বেতন: ${member.monthlyFee.toLocaleString('bn-BD')} ৳</small></div><div class="item-actions" style="flex-shrink:0;"><button class="btn btn-sm btn-warning" data-action="editMember" data-id="${member.id}">সম্পাদনা</button><button class="btn btn-sm ${member.isActive ? 'btn-danger' : 'btn'}" data-action="toggleMemberStatus" data-id="${member.id}">${member.isActive ? 'বাদ দিন' : 'সক্রিয় করুন'}</button></div>`; container.appendChild(itemDiv); }); },
+        editMember({id}) { const member = this.members.find(m => m.id === id); if (member) { document.getElementById('banglaNameInput').value = member.banglaName; document.getElementById('englishNameInput').value = member.englishName; document.getElementById('mobileNumberInput').value = member.mobileNumber; document.getElementById('monthlyFeeInput').value = member.monthlyFee; document.getElementById('editingMemberId').value = id; document.getElementById('memberForm').scrollIntoView({ behavior: 'smooth' }); } },
+        toggleMemberStatus({id}) { const member = this.members.find(m => m.id === id); if (member && confirm(`আপনি কি "${member.banglaName}" এর স্ট্যাটাস পরিবর্তন করতে নিশ্চিত?`)) { member.isActive = !member.isActive; this.saveData(); this.renderMemberList(); } },
+        exportMembersToJSON() { if (this.members.length === 0) return alert('রপ্তানি করার মতো কোনো সদস্য নেই।'); const dataStr = JSON.stringify(this.members, null, 2); const blob = new Blob([dataStr], {type: "application/json"}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'mosque_members_backup.json'; a.click(); URL.revokeObjectURL(url); },
+        triggerMemberImport() { document.getElementById('memberImportFile').click(); document.getElementById('memberImportFile').onchange = (e) => this.handleMemberImport(e); },
+        handleMemberImport(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const imported = JSON.parse(e.target.result); if (!Array.isArray(imported)) throw new Error('Invalid format'); if (confirm(`আপনি কি ${imported.length} জন সদস্যকে যোগ করতে চান? ডুপ্লিকেট নাম/মোবাইল নম্বর বাদ দেওয়া হবে।`)) { imported.forEach(newMember => { if (!this.members.some(existing => existing.banglaName === newMember.banglaName || (newMember.mobileNumber && existing.mobileNumber === newMember.mobileNumber))) this.members.push(newMember); }); this.saveData(); this.loadData(); this.renderMemberList(); alert('সদস্য আমদানি সফল হয়েছে।'); } } catch (err) { alert('ফাইলটি সঠিক JSON ফরম্যাটে নেই।'); } }; reader.readAsText(file); event.target.value = ''; },
+        
+        // --- SALARY COLLECTION ---
+        initSalaryCollection() {
+            document.getElementById('kromikNumberInput').value = '';
+            this.populateSalaryCollectorSelect();
+            this.selectedMonthsForSalary = []; 
+            this.renderSelectedSalaryMonths(); 
+            const now = new Date(); 
+            document.getElementById('salaryCollectionDate').valueAsDate = now; 
+            document.getElementById('salaryMonthSelector').value = now.toISOString().slice(0, 7); 
+        },
+        populateSalaryCollectorSelect() { const select = document.getElementById('salaryCollectorSelect'); select.innerHTML = '<option value="">-- সদস্য নির্বাচন করুন --</option>'; this.members.filter(m => m.isActive).sort((a,b)=>(a.kromikNo || 0)-(b.kromikNo || 0)).forEach(member => { const option = document.createElement('option'); option.value = member.id; option.textContent = `${member.kromikNo}. ${member.banglaName}`; option.dataset.fee = member.monthlyFee; select.appendChild(option); }); },
+        findMemberByKromik() {
+            const kromikNo = parseInt(document.getElementById('kromikNumberInput').value);
+            if (isNaN(kromikNo)) return;
+            const member = this.members.find(m => m.kromikNo === kromikNo && m.isActive);
+            if (member) {
+                document.getElementById('salaryCollectorSelect').value = member.id;
+            } else {
+                alert('এই ক্রমিক নম্বরের কোনো সক্রিয় সদস্য পাওয়া যায়নি।');
+                document.getElementById('salaryCollectorSelect').value = '';
+            }
+            document.getElementById('kromikNumberInput').value = ''; // Clear input after search
+        },
+        addMonthToSalarySelection() { const monthValue = document.getElementById('salaryMonthSelector').value; const memberId = document.getElementById('salaryCollectorSelect').value; if (!monthValue || !memberId) return alert('অনুগ্রহ করে সদস্য এবং মাস নির্বাচন করুন।'); const isAlreadyPaid = this.collections.some(c => c.memberId === memberId && c.feeForMonth === monthValue); if (isAlreadyPaid) { const member = this.members.find(m => m.id === memberId); return alert(`${member.banglaName} এর জন্য ${this.formatMonthBn(monthValue)} মাসের বেতন ইতিমধ্যে পরিশোধ করা হয়েছে।`); } if (this.selectedMonthsForSalary.some(item => item.month === monthValue)) return alert('এই মাসটি ইতিমধ্যে যোগ করা হয়েছে।'); const member = this.members.find(m => m.id === memberId); this.selectedMonthsForSalary.push({ month: monthValue, amount: member.monthlyFee, tempId: `m_${Date.now()}` }); this.selectedMonthsForSalary.sort((a, b) => a.month.localeCompare(b.month)); this.renderSelectedSalaryMonths(); },
+        renderSelectedSalaryMonths() { const container = document.getElementById('salarySelectedMonthsContainer'); container.innerHTML = ''; this.selectedMonthsForSalary.forEach(item => { const div = document.createElement('div'); div.className = 'selected-month-item'; div.style.cssText = 'display:flex; align-items:center; gap:10px; margin-bottom: 5px;'; div.innerHTML = `<span style="flex-grow:1;">${this.formatMonthBn(item.month)}:</span><input type="number" class="btn-sm" value="${item.amount}" onchange="app.updateSalaryAmountForMonth({id:'${item.tempId}', value:this.value})"><button type="button" class="btn btn-sm btn-danger" data-action="removeMonthFromSalarySelection" data-id="${item.tempId}">সরান</button>`; container.appendChild(div); }); },
+        updateSalaryAmountForMonth({id, value}) { const item = this.selectedMonthsForSalary.find(i => i.tempId === id); if (item) item.amount = parseFloat(value) || 0; },
+        removeMonthFromSalarySelection({id}) { this.selectedMonthsForSalary = this.selectedMonthsForSalary.filter(i => i.tempId !== id); this.renderSelectedSalaryMonths(); },
+        handleSalarySubmit() { const memberId = document.getElementById('salaryCollectorSelect').value; const collectionDate = document.getElementById('salaryCollectionDate').value; if (!memberId || !collectionDate || this.selectedMonthsForSalary.length === 0) return alert('সদস্য, মাস এবং সংগ্রহের তারিখ পূরণ করুন।'); const member = this.members.find(m => m.id === memberId); this.selectedMonthsForSalary.forEach(item => { if (item.amount > 0) this.collections.push({ id: `c_${Date.now()}_${Math.random()}`, memberId, donorBanglaName: member.banglaName, donorEnglishName: member.englishName, amount: item.amount, feeForMonth: item.month, collectionDate }); }); this.saveData(); alert('বেতন সফলভাবে জমা হয়েছে।'); this.initSalaryCollection(); },
+        generateSalaryReport({period}) {
+            const outputDiv = document.getElementById('salaryReportOutput');
+            const { reportData, title } = this.getReportData(period, this.collections, 'collectionDate');
+            outputDiv.innerHTML = `<h3>${title}</h3>`;
+            if (reportData.length === 0) {
+                outputDiv.innerHTML += '<p>এই সময়ের জন্য কোনো তথ্য পাওয়া যায়নি।</p>';
+                return;
+            }
+            let total = reportData.reduce((sum, item) => sum + item.amount, 0);
+            const table = document.createElement('table');
+            table.innerHTML = `
+                <thead><tr><th>সদস্য</th><th>বেতনের মাস</th><th>পরিমাণ (৳)</th><th>জমার তারিখ</th><th>কর্ম</th></tr></thead>
+                <tbody>${reportData.map(item => `
+                    <tr>
+                        <td>${item.donorBanglaName}</td>
+                        <td>${this.formatMonthBn(item.feeForMonth)}</td>
+                        <td>${item.amount.toLocaleString('bn-BD')}</td>
+                        <td>${this.formatDateBn(item.collectionDate)}</td>
+                        <td>
+                            <button class="btn btn-sm btn-warning" data-action="editSalaryRecord" data-id="${item.id}" data-period="${period}">সম্পাদনা</button>
+                            <button class="btn btn-sm btn-danger" data-action="deleteSalaryRecord" data-id="${item.id}" data-period="${period}">মুছুন</button>
+                        </td>
+                    </tr>`).join('')}
+                </tbody>
+                <tfoot><tr><td colspan="2" style="text-align:right;"><b>সর্বমোট</b></td><td><b>${total.toLocaleString('bn-BD')}</b></td><td colspan="2"></td></tr></tfoot>`;
+            outputDiv.appendChild(table);
+            const pdfButtons = `<div class="report-pdf-buttons">
+                <button class="btn" data-action="generateReportPDF" data-type="salary" data-period="${period}">Download PDF</button>
+            </div>`;
+            outputDiv.insertAdjacentHTML('beforeend', pdfButtons);
+        },
+        deleteSalaryRecord({id, period}) {
+            const record = this.collections.find(c => c.id === id);
+            if(record && confirm(`আপনি কি "${record.donorBanglaName}" এর "${this.formatMonthBn(record.feeForMonth)}" মাসের বেতন (${record.amount} ৳) মুছে ফেলতে নিশ্চিত?`)) {
+                this.collections = this.collections.filter(c => c.id !== id);
+                this.saveData();
+                alert("রেকর্ড সফলভাবে মুছে ফেলা হয়েছে।");
+                this.generateSalaryReport({period});
+            }
+        },
+        editSalaryRecord({id, period}) {
+            const record = this.collections.find(c => c.id === id);
+            if (!record) return;
+            const modalHTML = `
+            <div class="modal" id="editSalaryModal" style="display:block;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>বেতন সম্পাদনা করুন</h3>
+                        <span class="close-btn" data-action="closeModal">&times;</span>
+                    </div>
+                    <p><strong>সদস্য:</strong> ${record.donorBanglaName}<br><strong>মাস:</strong> ${this.formatMonthBn(record.feeForMonth)}</p>
+                    <div style="margin-top: 20px;">
+                        <label for="editSalaryAmount">টাকার পরিমাণ:</label>
+                        <input type="number" id="editSalaryAmount" value="${record.amount}">
+                        <label for="editSalaryDate">জমার তারিখ:</label>
+                        <input type="date" id="editSalaryDate" value="${record.collectionDate}">
+                        <button class="btn" id="saveSalaryEditBtn">সংরক্ষণ করুন</button>
+                    </div>
+                </div>
+            </div>`;
+            document.getElementById('modalContainer').innerHTML = modalHTML;
+            document.getElementById('saveSalaryEditBtn').addEventListener('click', () => {
+                const newAmount = parseFloat(document.getElementById('editSalaryAmount').value);
+                const newDate = document.getElementById('editSalaryDate').value;
+                if(isNaN(newAmount) || !newDate) {
+                    return alert("সঠিক পরিমাণ এবং তারিখ দিন।");
+                }
+                record.amount = newAmount;
+                record.collectionDate = newDate;
+                this.saveData();
+                alert("রেকর্ড সফলভাবে আপডেট করা হয়েছে।");
+                this.closeModal();
+                this.generateSalaryReport({period});
+            });
+        },
+        
+        // --- UNPAID REPORT ---
+        generateUnpaidReport() { const startMonthStr = document.getElementById('unpaidCheckStartMonth').value; const endMonthStr = document.getElementById('unpaidCheckEndMonth').value; const outputDiv = document.getElementById('unpaidReportOutput'); if (!startMonthStr || !endMonthStr) return alert("শুরু এবং শেষের মাস নির্বাচন করুন।"); outputDiv.innerHTML = `<h3>অপরিশোধিত রিপোর্ট (${this.formatMonthBn(startMonthStr)} থেকে ${this.formatMonthBn(endMonthStr)})</h3>`; let tableHTML = `<table><thead><tr><th>সদস্য</th><th>অপরিশোধিত মাস</th><th>মোট বাকি (৳)</th><th>বার্তা পাঠান</th></tr></thead><tbody>`; let hasUnpaid = false; this.members.filter(m => m.isActive).forEach(member => { let unpaidMonths = [], totalDue = 0; let current = new Date(startMonthStr + '-01'); const end = new Date(endMonthStr + '-01'); while(current <= end) { const monthToCheck = current.toISOString().slice(0, 7); if (!this.collections.some(c => c.memberId === member.id && c.feeForMonth === monthToCheck)) { unpaidMonths.push(monthToCheck); totalDue += member.monthlyFee; } current.setMonth(current.getMonth() + 1); } if (unpaidMonths.length > 0) { hasUnpaid = true; const lastPaid = this.collections.filter(c => c.memberId === member.id).sort((a,b) => new Date(b.collectionDate) - new Date(a.collectionDate))[0]; const lastPaidDate = lastPaid ? this.formatDateBn(lastPaid.collectionDate) : 'কখনো পরিশোধ হয়নি'; const unpaidMonthsBn = unpaidMonths.map(m => this.formatMonthBn(m).split(' ')[0]).join(', '); const smsText = `আসসালামুয়ালাইকুম, আপনার অবগতির জন্য জানানো যাচ্ছে যে, আপনি গত ${unpaidMonthsBn} মাসের মোট ${totalDue.toLocaleString('bn-BD')} টাকা বেতন পরিশোধ করেন নি। আপনার সর্বশেষ পরিশোধের তারিখ ছিল ${lastPaidDate}। অনুগ্রহপূর্বক আপনার বেতন প্রদান করুন। -প্রেরক: মসজিদ কমিটি।`; tableHTML += `<tr><td>${member.banglaName}<br><small>${member.mobileNumber || ''}</small></td><td>${unpaidMonthsBn}</td><td>${totalDue.toLocaleString('bn-BD')}</td><td><a href="sms:${member.mobileNumber}?body=${encodeURIComponent(smsText)}" class="btn btn-sm">SMS</a></td></tr>`; } }); if (!hasUnpaid) tableHTML += `<tr><td colspan="4" style="text-align:center;">এই সময়ে কোনো অপরিশোধিত সদস্য নেই।</td></tr>`; tableHTML += `</tbody></table>`; outputDiv.innerHTML += tableHTML; },
+        
+        // --- WHATSAPP & MODALS ---
+        handleWhatsAppSubmit() { const name = document.getElementById('whatsappContactName').value.trim(); const number = document.getElementById('whatsappContactNumber').value.trim(); if(name && number) { this.whatsappContacts.push({id:`w_${Date.now()}`, name, number}); this.saveData(); this.renderWhatsappList(); document.getElementById('whatsappForm').reset(); } },
+        renderWhatsappList() { const container = document.getElementById('whatsappListContainer'); container.innerHTML = ''; this.whatsappContacts.forEach(c => { const div = document.createElement('div'); div.className = 'list-item'; div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom: 1px solid #eee;'; div.innerHTML = `<div><strong>${c.name}</strong><br><small>${c.number}</small></div><div class="item-actions" style="flex-shrink:0;"><button class="btn btn-sm" data-action="openWhatsappModal" data-id="${c.id}">রিপোর্ট পাঠান</button><button class="btn btn-sm btn-danger" data-action="removeWhatsappContact" data-id="${c.id}">মুছুন</button></div>`; container.appendChild(div); }); },
+        removeWhatsappContact({id}) { this.whatsappContacts = this.whatsappContacts.filter(c => c.id !== id); this.saveData(); this.renderWhatsappList(); },
+        openWhatsappModal({id}) { const modalHTML = `<div class="modal" id="whatsappReportModal" style="display:block;"><div class="modal-content"><div class="modal-header"><h3>রিপোর্টের ধরণ নির্বাচন করুন</h3><span class="close-btn" data-action="closeModal">&times;</span></div><div class="modal-body"><div class="report-option-group" style="margin-top:15px;"><h4>টেক্সট রিপোর্ট পাঠান</h4><button class="btn btn-sm" data-action="sendWhatsappReport" data-id="${id}" data-period="daily" data-format="text">দৈনিক</button><button class="btn btn-sm" data-action="sendWhatsappReport" data-id="${id}" data-period="weekly" data-format="text">সাপ্তাহিক</button><button class="btn btn-sm" data-action="sendWhatsappReport" data-id="${id}" data-period="monthly" data-format="text">মাসিক</button><button class="btn btn-sm" data-action="sendWhatsappReport" data-id="${id}" data-period="yearly" data-format="text">বাৎসরিক</button></div></div></div></div>`; document.getElementById('modalContainer').innerHTML = modalHTML; },
+        closeModal() { document.getElementById('modalContainer').innerHTML = ''; },
+        sendWhatsappReport({id, period, format}) { 
+            const contact = this.whatsappContacts.find(c => c.id === id); 
+            if(!contact) return; 
+            const salaryReport = this.getReportData(period, this.collections, 'collectionDate'); 
+            const totalSalary = salaryReport.reportData.reduce((s,i)=>s+i.amount,0); 
+            let text = `*${salaryReport.title}*\n\n*বেতন সংগ্রহ:*\n-----------------------\n`; 
+            if(salaryReport.reportData.length > 0) {
+                salaryReport.reportData.forEach(item => { 
+                    text += `${item.donorBanglaName} (${this.formatMonthBn(item.feeForMonth)}) - ${item.amount.toLocaleString('bn-BD')} ৳\n`; 
+                }); 
+            } else {
+                text += 'কোনো তথ্য নেই।\n'; 
+            }
+            text += `\n*সর্বমোট আয়: ${totalSalary.toLocaleString('bn-BD')} ৳*`; 
+            window.open(`https://wa.me/${contact.number}?text=${encodeURIComponent(text)}`, '_blank'); 
+            this.closeModal(); 
+        },
+        
+        // --- PDF GENERATION ---
+        exportMembersToPDF() {
+            if (this.members.length === 0) return alert('PDF তৈরির জন্য কোনো সদস্য নেই।');
+            const doc = new jsPDF();
+            doc.setFont('helvetica');
+            const title = "Member List";
+            const headers = [['#', 'Name (English)', 'Mobile', 'Fee (Tk)']];
+            const body = this.members.filter(m => m.isActive).sort((a,b) => (a.kromikNo || 0) - (b.kromikNo || 0)).map(m => [m.kromikNo, m.englishName, m.mobileNumber || 'N/A', m.monthlyFee.toString()]);
+            const filename = 'member_list_en.pdf';
+            doc.text(title, 14, 15);
+            doc.autoTable({ head: headers, body, startY: 20 });
+            doc.save(filename);
+        },
+        generateReportPDF({type, period}) {
+            const doc = new jsPDF();
+            doc.setFont('helvetica');
+            let title, filename, headers, body, foot;
+            
+            if (type === 'salary') {
+                const { reportData, pdfTitle: enTitle } = this.getReportData(period, this.collections, 'collectionDate');
+                if (reportData.length === 0) return alert('রিপোর্ট তৈরির জন্য কোনো ডেটা নেই।');
+                let total = reportData.reduce((s, i) => s + i.amount, 0);
+                
+                title = enTitle;
+                headers = [['Member (English)', 'Fee For Month', 'Amount (Tk)', 'Collection Date']];
+                body = reportData.map(item => [item.donorEnglishName, this.formatMonthEn(item.feeForMonth), item.amount.toFixed(2), this.formatDateEn(item.collectionDate)]);
+                foot = [['Total', '', total.toFixed(2), '']];
+                filename = `salary_report_${period}_en.pdf`;
+            }
+
+            doc.text(title, 14, 15);
+            doc.autoTable({ head: headers, body, foot, startY: 20 });
+            doc.save(filename);
+        },
+
+        // --- DASHBOARD VIEW (REVISED) ---
+        renderDashboard() {
+            const dashboardContent = document.getElementById('dashboardContent');
+            dashboardContent.innerHTML = 'লোড হচ্ছে...';
+
+            const activeMembers = this.members.filter(m => m.isActive).length;
+            let contentHTML = `
+                <div style="background-color: #e8f3f1; padding: 20px; border-radius: 10px; text-align: center; grid-column: 1 / -1;">
+                    <h3 style="color: var(--primary-green);">মোট সক্রিয় সদস্য</h3>
+                    <p style="font-size: 2.5em; font-weight: bold; color: var(--secondary-green);">${activeMembers.toLocaleString('bn-BD')}</p>
+                </div>
+            `;
+            
+            // Get all unique years from collections data and sort them descending
+            const allYears = [...new Set(this.collections.map(c => c.collectionDate.slice(0, 4)))].sort((a, b) => b.localeCompare(a));
+            const currentYearStr = new Date().getFullYear().toString();
+
+            // Ensure the current year is in the list, even if there's no data yet.
+            if (!allYears.includes(currentYearStr)) {
+                allYears.unshift(currentYearStr);
+            }
+
+            allYears.forEach(year => {
+                contentHTML += `<h3 style="grid-column: 1 / -1; text-align: center; background: var(--primary-green); color: white; padding: 10px; border-radius: 8px; margin-top: 20px; margin-bottom: 0;">${parseInt(year).toLocaleString('bn-BD')} সালের হিসাব</h3>`;
+
+                // Loop through all 12 months for the given year
+                for (let i = 0; i < 12; i++) { // 0 for Jan, 11 for Dec
+                    const monthDate = new Date(year, i, 1);
+                    const monthStr = monthDate.toISOString().slice(0, 7);
+                    const monthTitle = this.formatMonthBn(monthStr);
+
+                    // 1. "মাসিক নির্ধারিত ফি": Fee collected *FOR* this specific month (e.g., all January fees, paid anytime)
+                    const feeForMonthTotal = this.collections
+                        .filter(c => c.feeForMonth.slice(0, 7) === monthStr)
+                        .reduce((sum, item) => sum + item.amount, 0);
+
+                    // 2. "ঐ মাসে মোট আদায়": Total fee collected *IN* this specific month (cash flow)
+                    const collectedInMonthTotal = this.collections
+                        .filter(c => c.collectionDate.slice(0, 7) === monthStr)
+                        .reduce((sum, item) => sum + item.amount, 0);
+
+                    // Build the HTML block for the month
+                    contentHTML += `
+                        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 5px solid var(--accent-gold);">
+                            <h4 style="color: var(--primary-green); border-bottom: 1px solid #e0e0e0; padding-bottom: 8px; margin-bottom: 12px;">${monthTitle}</h4>
+                            <p style="margin-bottom: 5px;">মাসিক নির্ধারিত ফি: <strong>${feeForMonthTotal.toLocaleString('bn-BD')} ৳</strong></p>
+                            <p>ঐ মাসে মোট আদায়: <strong>${collectedInMonthTotal.toLocaleString('bn-BD')} ৳</strong></p>
+                        </div>
+                    `;
+                }
+            });
+
+            dashboardContent.innerHTML = contentHTML;
+        },
+
+        // --- ALL MONTHS PDF (Corrected Logic) ---
+        generateAllMonthsPdf() {
+            const doc = new jsPDF();
+            doc.setFont('helvetica');
+
+            // 1. Find all unique months based on the `feeForMonth` field.
+            const allMonths = new Set();
+            this.collections.forEach(c => allMonths.add(c.feeForMonth.slice(0, 7)));
+            
+            const sortedMonths = Array.from(allMonths).sort().reverse(); // Show recent months first
+
+            if (sortedMonths.length === 0) {
+                return alert('No data available to generate a report.');
+            }
+
+            let isFirstPage = true;
+
+            // 2. Loop through each unique month. Each month gets its own page.
+            sortedMonths.forEach(monthStr => {
+                if (!isFirstPage) {
+                    doc.addPage();
+                }
+                isFirstPage = false;
+                
+                // 3. Filter all collections to get only the payments *for* this month.
+                const salaryDataForThisMonth = this.collections.filter(c => c.feeForMonth.slice(0, 7) === monthStr)
+                                                 .sort((a,b) => new Date(a.collectionDate) - new Date(b.collectionDate));
+                
+                doc.setFontSize(16);
+                doc.text(`Monthly Fee Report: ${this.formatMonthEn(monthStr)}`, 14, 20);
+                
+                if (salaryDataForThisMonth.length > 0) {
+                    let totalSalary = salaryDataForThisMonth.reduce((s, i) => s + i.amount, 0);
+                    doc.autoTable({
+                        startY: 25,
+                        head: [['Member Name', 'Amount (Tk)', 'Payment Date']],
+                        body: salaryDataForThisMonth.map(item => [item.donorEnglishName, item.amount.toFixed(2), this.formatDateEn(item.collectionDate)]),
+                        foot: [['Total', totalSalary.toFixed(2), '']],
+                        theme: 'grid'
+                    });
+                } else {
+                    doc.setFontSize(10);
+                    doc.text('No salary collections recorded for this month.', 14, 32);
+                }
+            });
+
+            const pageCount = doc.internal.getNumberOfPages();
+            const now = new Date();
+            const footerText = `Report generated on: ${now.toLocaleDateString('en-US')} at ${now.toLocaleTimeString('en-US')}`;
+
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                const pageHeight = doc.internal.pageSize.getHeight();
+                doc.setFontSize(8);
+                doc.text(footerText, 14, pageHeight - 10);
+            }
+
+            doc.save(`masjid_all_months_report_en_${new Date().getTime()}.pdf`);
+        },
+
+
+        // --- BACKUP & RESTORE ---
+        backupAllData() { const allData = { members: this.members, collections: this.collections, whatsappContacts: this.whatsappContacts }; const dataStr = JSON.stringify(allData, null, 2); const blob = new Blob([dataStr], {type: "application/json"}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `masjid_backup_${new Date().toISOString().split('T')[0]}.json`; a.click(); URL.revokeObjectURL(url); },
+        handleRestoreData() { const fileInput = document.getElementById('restoreFileInput'); const file = fileInput.files[0]; if (!file) return alert('অনুগ্রহ করে একটি ফাইল নির্বাচন করুন।'); const reader = new FileReader(); reader.onload = (e) => { try { const restoredData = JSON.parse(e.target.result); if (confirm('আপনি কি নিশ্চিতভাবে সকল তথ্য রিস্টোর করতে চান? বর্তমান সকল তথ্য মুছে যাবে।')) { localStorage.setItem(this.KEYS.members, JSON.stringify(restoredData.members || [])); localStorage.setItem(this.KEYS.collections, JSON.stringify(restoredData.collections || [])); localStorage.setItem(this.KEYS.whatsappContacts, JSON.stringify(restoredData.whatsappContacts || [])); alert('তথ্য সফলভাবে রিস্টোর হয়েছে। পেইজটি রিলোড হচ্ছে।'); location.reload(); } } catch (err) { alert('ফাইলটি সঠিক ফরম্যাটে নেই।'); } }; reader.readAsText(file); fileInput.value = ''; }
+    };
+    
+    app.init();
+});
+</script>
+</body>
+</html>
